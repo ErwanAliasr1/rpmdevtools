@@ -21,6 +21,7 @@
 ## Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 use strict;
+use File::Basename;
 use File::Temp;
 use File::Spec;
 use FileHandle;
@@ -198,8 +199,11 @@ sub retrievable {
 sub retrieve {
 	my ($where, $url) = @_;
 	if (retrievable ($url)) {
-		my $path = File::Spec->catfile($where, $url =~ m|([^/]+)$|);
-		print "Getting $url to $path\n";
+    my @cmd1 = (qw (curl --fail --silent --location -I), '--user-agent', "spectool/$VERSION");
+		my $path = `@cmd1 '$url' | awk -F '=' '/filename=/{ gsub(\"\\"\", \"\"); print \$2 }'`;
+    local $/ = "\r\n";
+    chomp $path;
+    print "Getting $url to $path\n";
 		if (-e $path) {
 			if ($force) {
 				if (! unlink $path) {
@@ -214,8 +218,7 @@ sub retrieve {
 		# Note: -k/--insecure is intentionally not here; add it to
 		#       $CURLRC if you want it.
 		my @cmd = (qw (curl --fail --remote-time --location
-			       --output), $path,
-			   '--user-agent', "spectool/$VERSION");
+			       -J -L -O), '--user-agent', "spectool/$VERSION");
 		push(@cmd, '--config', $CURLRC) if (-e $CURLRC);
 		push(@cmd, $url);
 		print "--> @cmd\n" if ($verbose > 1);
